@@ -1,0 +1,54 @@
+---
+title: "p8105_hw6_mss2284"
+author: "Maya Spaur"
+date: "11/16/2019"
+output: github_document
+---
+
+```{r setup}
+library(tidyverse)
+
+```
+
+#Problem 1
+
+Load and tidy data
+
+```{r}
+data = 
+  read_csv(file = "./data/birthweight.csv") %>%
+  janitor::clean_names() %>%
+  mutate(
+    babysex = as.factor(babysex),
+    frace = as.factor(frace),
+    mrace = as.factor(mrace)
+  )
+
+view(data)
+
+summary(data)
+
+```
+
+There is missing data for the variables pnumlbw and pnumgsa.
+
+Modeling process
+
+```{r proposed model}
+model = lm(bwt ~ fincome, data = data) %>%
+  broom::tidy()
+
+model
+```
+
+```{r main effects model}
+
+main_effects = lm(bwt ~ blength + gaweeks, data = data) %>%
+  broom::tidy()
+```
+
+One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+#how to create the term? multiply?
+
+
+
