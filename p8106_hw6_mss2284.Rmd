@@ -36,8 +36,9 @@ In proposing a regression model for birthweight, I explore two different model-b
 
 Modeling process: hypothesis testing
 
-Model 1. This process is data-driven and is based on the variables that are statistically significant.
+Model 1. This process is data-driven and is based on the variables that are statistically significant. This is backward selection. 
 
+Using all of the variables included in the dataset:
 
 ```{r modeling process}
 model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + frace + gaweeks + malform + menarche + mheight + momage + mrace + parity + pnumlbw + pnumsga + ppbmi + ppwt + smoken + wtgain, data = data)
@@ -47,16 +48,29 @@ model %>%
   knitr::kable(digits = 2)
 ```
 
-Using this model-building process, the following variables were statistically significant (p < 0.05) and would be included in the proposed model:
+Using this model-building process, the following variables were statistically significant (p < 0.05):
 
 babysex2, bhead, blength, delwt, gaweeks, mrace2, parity, and smoken.
 
-Plot of model residuals against fitted values:
+According to backward selection, a new model is run with these statistically significant variables to determine if they remain significant; the process is repeated until the remainder are all significant. 
+
+#LEAPS library does this automatically, can use the function STEP. Provide an explicit explanation.
+
+As displayed below, these variables remain significant in the restricted model and represent the proposed model: 
 
 ```{r}
 
 proposed_model = lm(bwt ~ babysex+ bhead + blength + delwt + gaweeks+ mrace + parity + smoken, data = data)
 
+proposed_model %>%
+  broom::tidy() %>%
+  knitr::kable(digits = 2)
+
+```
+
+Plot of model residuals against fitted values:
+
+```{r}
 scatter_plot =
   data %>% 
   modelr::add_residuals(proposed_model) %>% 
@@ -66,53 +80,9 @@ scatter_plot =
 scatter_plot
 ```
 
-To assess the predictive ability of this model, a cross-validation modeling process was also used, using a model based on the terms that were found statistically significant in the proposed model: babysex2, bhead, blength, delwt, gaweeks, mrace2, parity, and smoken
+I propose to include these statistically significant variables, babysex, bhead, blength, delwt, gaweeks, mrace, parity, and smoken in the model.
 
 
-I propose to include these statistically significant variables in the model.
-
-
-```{r cross validation, message = FALSE}
-
-cv_df =
-  crossv_mc(data, 100)
-
-cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
-cv_df %>% pull(test) %>% .[[1]] %>% as_tibble
-
-cv_df =
-  cv_df %>% 
-  mutate(
-    train = map(train, as_tibble),
-    test = map(test, as_tibble))
-
-cv_df = 
-  cv_df %>% 
-  mutate(linear_mod  = map(train, ~lm(bwt ~ babysex+bhead+blength+ delwt+ gaweeks+ mrace + parity + smoken, data = .x))) %>% 
-  mutate(rmse_linear = map2_dbl(linear_mod, test, ~rmse(model = .x, data = .y))) 
-```
-
-Plot of the distribution of RMSE values
-
-```{r}
-plot2 = 
-  cv_df %>% 
-  select(starts_with("rmse")) %>% 
-  pivot_longer(
-    everything(),
-    names_to = "model", 
-    values_to = "rmse",
-    names_prefix = "rmse_") %>% 
-  mutate(model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
-
-plot2
-```
-
-Given the distribution of RMSE values, this corresponds to the RMSE for the proposed linear model above, with `r rmse(model, data)`. However, these values are still high so the model is not expected to be highly predictive of other observations.
-
-
-#Make one plot per model
 
 Main Effects Model
 
@@ -132,7 +102,7 @@ plot_main_effects =
 plot_main_effects
 ```
 
-#r generates interaction terms for everything when doing these types of models, so JUST look at the p value for the interaction term to assess if it's statistically significant!
+Interaction Effects Model
 
 ```{r interaction model}
 
@@ -153,11 +123,9 @@ plot_interaction_effects
 For the model containing babysex, bhead, blength, and the interactions between these variables, the interaction terms were statistically significant.
 
 
-Compare models
+Compare models:
 
-#Error in seq_len(n) : argument must be coercible to non-negative integer
-
-r comparing models
+```{r comparing models}
 cv_bwt_df =
   crossv_mc(data, 100) %>%
   mutate(
@@ -174,14 +142,28 @@ cv_bwt_df =
          rmse_interaction_effects = map2_dbl(interaction_effects, test, ~rmse(model = .x, data = .y)))
 
 
+comparison_plot = 
+  cv_bwt_df %>% 
+  pivot_longer(
+    rmse_proposed:rmse_interaction_effects,
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
 
+comparison_plot
+```
+
+
+Based on the plot above, the proposed model is the best model because it has the lowest RMSE values. Second best is the interaction_effects model, and the worst model is the main_effects model with the highest RMSE.
+
+#Problem 2
 
 #Error? How to adjust broom::tidy --> gives estimates for beta0 and beta1, can compute the log(beta0 and beta1 by creating a new column). have to pivot the estimate wider
 #get CI by taking the percentiles
 
-#Problem 2
-
-r, echo = FALSE
+```{r, echo = FALSE}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -193,22 +175,53 @@ weather_df =
     tmin = tmin / 10,
     tmax = tmax / 10) %>%
   select(name, id, everything())
+
 ```
 
 Bootstraps
 
-r
+```{r}
 set.seed(1)
 
 boot_straps = 
   weather_df %>% 
-  modelr::bootstrap(n = 5000) %>%
+  modelr::bootstrap(n = 10) %>%
   mutate(models = map(strap, ~lm(tmax ~ tmin, data = .x)),
-         results = map(models, broom::glance()),
-         reults_2 = map(models, broom::tidy())) %>%
-  select(-strap, -models) %>%
-  unnest(results) %>%
-  group_by(term) %>%
-  summarize(r_squared = coef(estimate))
+         results = map(models, broom::glance),
+         results_2 = map(models, broom::tidy)) %>%
+  select(-strap, -models)  %>%
+  janitor::clean_names()
 
+boot_straps
+```
+
+
+Plot of Distribution of Estimates
+
+```{r}
+
+```
+
+#how to get intercept and tmin in one row
+
+```{r}
+boot_straps %>% 
+  unnest(results) %>%
+    summarize(
+    perc_2.5 = quantile(r.squared, 0.025),
+    perc_90_1 = quantile(r.squared, 0.975))
+
+boot_straps %>% 
+  unnest(results_2) %>%
+  pivot_wider(
+    names_from = "term",
+    values_from = "estimate"
+  ) %>%
+  janitor::clean_names() %>%
+  group_by(id) %>%
+  mutate(log_term = log(intercept * tmin))
+   
+  
+  
+```
 
