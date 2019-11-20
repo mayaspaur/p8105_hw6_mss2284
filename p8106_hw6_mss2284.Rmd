@@ -15,9 +15,7 @@ library(ggplot2)
 
 #Problem 1
 
-Load and tidy data
-
-#have to convert into metric
+Load and tidy data: categorical variabels were converted into factor variables, and variables that had units in pounds (delwt, ppwt, wtgain) were converted to grams.
 
 ```{r}
 data = 
@@ -26,7 +24,10 @@ data =
   mutate(
     babysex = as.factor(babysex),
     frace = as.factor(frace),
-    mrace = as.factor(mrace)
+    mrace = as.factor(mrace),
+    delwt = 453.592*delwt,
+    ppwt = 453.592*ppwt,
+    wtgain = 453.592*wtgain
   )
 
 ```
@@ -38,7 +39,7 @@ Modeling process: hypothesis testing
 Model 1. This process is data-driven and is based on the variables that are statistically significant.
 
 
-```{r proposed model}
+```{r modeling process}
 model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + frace + gaweeks + malform + menarche + mheight + momage + mrace + parity + pnumlbw + pnumsga + ppbmi + ppwt + smoken + wtgain, data = data)
 
 model %>%
@@ -46,46 +47,32 @@ model %>%
   knitr::kable(digits = 2)
 ```
 
-Using this model-building process, the following variables were statistically significant (p < 0.05) and would be included in the model:
+Using this model-building process, the following variables were statistically significant (p < 0.05) and would be included in the proposed model:
 
 babysex2, bhead, blength, delwt, gaweeks, mrace2, parity, and smoken.
 
-Plot of model residuals against fitted values
-
+Plot of model residuals against fitted values:
 
 ```{r}
-modelr::add_residuals(data, model)
 
-modelr::add_predictions(data, model)
-
-
-plot =
-  data %>% 
-  modelr::add_residuals(model) %>% 
-  modelr::add_predictions(model) %>%
-  ggplot(aes(x = pred, y = resid)) + geom_violin()
-
-plot
+proposed_model = lm(bwt ~ babysex+ bhead + blength + delwt + gaweeks+ mrace + parity + smoken, data = data)
 
 scatter_plot =
   data %>% 
-  modelr::add_residuals(model) %>% 
-  modelr::add_predictions(model) %>%
+  modelr::add_residuals(proposed_model) %>% 
+  modelr::add_predictions(proposed_model) %>%
   ggplot(aes(x = pred, y = resid)) + geom_point()
 
 scatter_plot
 ```
 
+To assess the predictive ability of this model, a cross-validation modeling process was also used, using a model based on the terms that were found statistically significant in the proposed model: babysex2, bhead, blength, delwt, gaweeks, mrace2, parity, and smoken
 
-Model 2. Modeling process: cross-validation
 
-Using cross-validation, another way of forming the model would be based on what kind of variables I think are related to the outcome (babyweight), and to retain variables in the model that I think are plausible to include even if the model does not find them statistically significant. 
+I propose to include these statistically significant variables in the model.
 
-I propose to include mother and father's race, family income, .. etc. 
 
-#to look at the estimates, do that on the whole dataset and fit it once (linear model) and then use the cross-validation of your model to see how well it would predict other observations! 
-
-```{r cross validation}
+```{r cross validation, message = FALSE}
 
 cv_df =
   crossv_mc(data, 100)
@@ -101,9 +88,13 @@ cv_df =
 
 cv_df = 
   cv_df %>% 
-  mutate(linear_mod  = map(train, ~lm(bwt ~ frace + mrace + fincome + pnumlbw + smoken + gaweeks + malform + momage, data = .x))) %>% 
+  mutate(linear_mod  = map(train, ~lm(bwt ~ babysex+bhead+blength+ delwt+ gaweeks+ mrace + parity + smoken, data = .x))) %>% 
   mutate(rmse_linear = map2_dbl(linear_mod, test, ~rmse(model = .x, data = .y))) 
+```
 
+Plot of the distribution of RMSE values
+
+```{r}
 plot2 = 
   cv_df %>% 
   select(starts_with("rmse")) %>% 
@@ -118,6 +109,8 @@ plot2 =
 plot2
 ```
 
+Given the distribution of RMSE values, this corresponds to the RMSE for the proposed linear model above, with `r rmse(model, data)`. However, these values are still high so the model is not expected to be highly predictive of other observations.
+
 
 #Make one plot per model
 
@@ -129,6 +122,14 @@ main_effects = lm(bwt ~ blength + gaweeks, data = data)
 
 main_effects %>%
   broom::tidy()
+
+plot_main_effects =
+  data %>% 
+  modelr::add_residuals(main_effects) %>%
+  modelr::add_predictions(main_effects) %>%
+  ggplot(aes(x = pred, y = resid)) + geom_point()
+
+plot_main_effects
 ```
 
 #r generates interaction terms for everything when doing these types of models, so JUST look at the p value for the interaction term to assess if it's statistically significant!
@@ -139,18 +140,48 @@ interaction_effects = lm(bwt ~ blength + gaweeks + (bhead*blength*babysex), data
 
 interaction_effects %>%
   broom::tidy()
+
+plot_interaction_effects =
+  data %>% 
+  modelr::add_residuals(interaction_effects) %>%
+  modelr::add_predictions(interaction_effects) %>%
+  ggplot(aes(x = pred, y = resid)) + geom_point()
+
+plot_interaction_effects
 ```
 
-One using head circumference, length, sex, and all interactions (including the three-way interaction) between these...
-#just look at the 3-way interaction term!
+For the model containing babysex, bhead, blength, and the interactions between these variables, the interaction terms were statistically significant.
+
+
+Compare models
+
+#Error in seq_len(n) : argument must be coercible to non-negative integer
+
+r comparing models
+cv_bwt_df =
+  crossv_mc(data, 100) %>%
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+
+cv_bwt_df = 
+  cv_bwt_df %>% 
+  mutate(proposed_model  = map(train, ~lm(bwt ~ babysex+ bhead + blength + delwt + gaweeks+ mrace + parity + smoken, data = .x)),
+         main_effects    = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         interaction_effects  = map(train, ~lm(bwt ~ blength + gaweeks + (bhead*blength*babysex), data = .x))) %>% 
+  mutate(rmse_proposed = map2_dbl(proposed_model, test, ~rmse(model = .x, data = .y)),
+         rmse_main_effects    = map2_dbl(main_effects, test, ~rmse(model = .x, data = .y)),
+         rmse_interaction_effects = map2_dbl(interaction_effects, test, ~rmse(model = .x, data = .y)))
 
 
 
 
+#Error? How to adjust broom::tidy --> gives estimates for beta0 and beta1, can compute the log(beta0 and beta1 by creating a new column). have to pivot the estimate wider
+#get CI by taking the percentiles
 
 #Problem 2
 
-```{r, echo = FALSE}
+r, echo = FALSE
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -165,5 +196,19 @@ weather_df =
 ```
 
 Bootstraps
+
+r
+set.seed(1)
+
+boot_straps = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000) %>%
+  mutate(models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+         results = map(models, broom::glance()),
+         reults_2 = map(models, broom::tidy())) %>%
+  select(-strap, -models) %>%
+  unnest(results) %>%
+  group_by(term) %>%
+  summarize(r_squared = coef(estimate))
 
 
