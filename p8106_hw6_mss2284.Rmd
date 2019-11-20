@@ -7,12 +7,17 @@ output: github_document
 
 ```{r setup}
 library(tidyverse)
+library(modelr)
+library(mgcv)
+library(ggplot2)
 
 ```
 
 #Problem 1
 
 Load and tidy data
+
+#have to convert into metric
 
 ```{r}
 data = 
@@ -24,31 +29,141 @@ data =
     mrace = as.factor(mrace)
   )
 
-view(data)
-
-summary(data)
-
 ```
 
-There is missing data for the variables pnumlbw and pnumgsa.
+In proposing a regression model for birthweight, I explore two different model-building processes. The first uses a data-driven model-building process, and the second uses a hypothesized structure and cross-validation.
 
-Modeling process
+Modeling process: hypothesis testing
+
+Model 1. This process is data-driven and is based on the variables that are statistically significant.
+
 
 ```{r proposed model}
-model = lm(bwt ~ fincome, data = data) %>%
-  broom::tidy()
+model = lm(bwt ~ babysex + bhead + blength + delwt + fincome + frace + gaweeks + malform + menarche + mheight + momage + mrace + parity + pnumlbw + pnumsga + ppbmi + ppwt + smoken + wtgain, data = data)
 
-model
+model %>%
+  broom::tidy() %>%
+  knitr::kable(digits = 2)
 ```
+
+Using this model-building process, the following variables were statistically significant (p < 0.05) and would be included in the model:
+
+babysex2, bhead, blength, delwt, gaweeks, mrace2, parity, and smoken.
+
+Plot of model residuals against fitted values
+
+
+```{r}
+modelr::add_residuals(data, model)
+
+modelr::add_predictions(data, model)
+
+
+plot =
+  data %>% 
+  modelr::add_residuals(model) %>% 
+  modelr::add_predictions(model) %>%
+  ggplot(aes(x = pred, y = resid)) + geom_violin()
+
+plot
+
+scatter_plot =
+  data %>% 
+  modelr::add_residuals(model) %>% 
+  modelr::add_predictions(model) %>%
+  ggplot(aes(x = pred, y = resid)) + geom_point()
+
+scatter_plot
+```
+
+
+Model 2. Modeling process: cross-validation
+
+Using cross-validation, another way of forming the model would be based on what kind of variables I think are related to the outcome (babyweight), and to retain variables in the model that I think are plausible to include even if the model does not find them statistically significant. 
+
+I propose to include mother and father's race, family income, .. etc. 
+
+#to look at the estimates, do that on the whole dataset and fit it once (linear model) and then use the cross-validation of your model to see how well it would predict other observations! 
+
+```{r cross validation}
+
+cv_df =
+  crossv_mc(data, 100)
+
+cv_df %>% pull(train) %>% .[[1]] %>% as_tibble
+cv_df %>% pull(test) %>% .[[1]] %>% as_tibble
+
+cv_df =
+  cv_df %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+
+cv_df = 
+  cv_df %>% 
+  mutate(linear_mod  = map(train, ~lm(bwt ~ frace + mrace + fincome + pnumlbw + smoken + gaweeks + malform + momage, data = .x))) %>% 
+  mutate(rmse_linear = map2_dbl(linear_mod, test, ~rmse(model = .x, data = .y))) 
+
+plot2 = 
+  cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+
+plot2
+```
+
+
+#Make one plot per model
+
+Main Effects Model
 
 ```{r main effects model}
 
-main_effects = lm(bwt ~ blength + gaweeks, data = data) %>%
+main_effects = lm(bwt ~ blength + gaweeks, data = data)
+
+main_effects %>%
   broom::tidy()
 ```
 
-One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
-#how to create the term? multiply?
+#r generates interaction terms for everything when doing these types of models, so JUST look at the p value for the interaction term to assess if it's statistically significant!
 
+```{r interaction model}
+
+interaction_effects = lm(bwt ~ blength + gaweeks + (bhead*blength*babysex), data = data)
+
+interaction_effects %>%
+  broom::tidy()
+```
+
+One using head circumference, length, sex, and all interactions (including the three-way interaction) between these...
+#just look at the 3-way interaction term!
+
+
+
+
+
+#Problem 2
+
+```{r, echo = FALSE}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+Bootstraps
 
 
