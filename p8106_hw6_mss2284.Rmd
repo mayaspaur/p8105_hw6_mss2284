@@ -198,30 +198,57 @@ boot_straps
 
 Plot of Distribution of Estimates
 
+#Do they mean a density plot?
+
+r^2
 ```{r}
+boot_straps_1 =
+  boot_straps %>% 
+  unnest(results) %>%
+  ggplot(aes(x = r.squared)) + geom_density()
 
-```
+boot_straps_1
 
-#how to get intercept and tmin in one row
-
-```{r}
-boot_straps %>% 
+percentile_1 = 
+  boot_straps %>% 
   unnest(results) %>%
     summarize(
     perc_2.5 = quantile(r.squared, 0.025),
-    perc_90_1 = quantile(r.squared, 0.975))
+    perc_90_1 = quantile(r.squared, 0.975)) %>%
+  knitr::kable()
 
-boot_straps %>% 
+percentile_1
+
+```
+
+log(β^0∗β^1)
+
+```{r}
+boot_straps_2 =
+  boot_straps %>% 
   unnest(results_2) %>%
+  select(id, term, estimate) %>%
   pivot_wider(
     names_from = "term",
     values_from = "estimate"
   ) %>%
   janitor::clean_names() %>%
-  group_by(id) %>%
-  mutate(log_term = log(intercept * tmin))
-   
+  mutate(log_term = log(intercept * tmin)) 
+
+percentile_2 = 
+  boot_straps_2 %>%
+  summarize(
+    perc_2.5 = quantile(log_term, 0.025),
+    perc_90_1 = quantile(log_term, 0.975)) %>%
+  knitr::kable()
   
-  
+percentile_2  
+
+boot_straps_2_plot =
+  boot_straps_2 %>%
+  ggplot(aes(x = log_term)) + geom_density()
+
+boot_straps_2_plot
+
 ```
 
