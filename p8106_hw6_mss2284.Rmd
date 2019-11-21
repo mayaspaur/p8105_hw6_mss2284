@@ -32,11 +32,7 @@ data =
 
 ```
 
-In proposing a regression model for birthweight, I explore two different model-building processes. The first uses a data-driven model-building process, and the second uses a hypothesized structure and cross-validation.
-
-Modeling process: hypothesis testing
-
-Model 1. This process is data-driven and is based on the variables that are statistically significant. This is backward selection. 
+In proposing a regression model for birthweight, I explore a data-driven model-building process using backward selection, whereby variables that are statistically significant remain the model.
 
 Using all of the variables included in the dataset:
 
@@ -54,7 +50,7 @@ babysex2, bhead, blength, delwt, gaweeks, mrace2, parity, and smoken.
 
 According to backward selection, a new model is run with these statistically significant variables to determine if they remain significant; the process is repeated until the remainder are all significant. 
 
-#LEAPS library does this automatically, can use the function STEP. Provide an explicit explanation.
+#Provide an explicit explanation.
 
 As displayed below, these variables remain significant in the restricted model and represent the proposed model: 
 
@@ -83,7 +79,6 @@ scatter_plot
 I propose to include these statistically significant variables, babysex, bhead, blength, delwt, gaweeks, mrace, parity, and smoken in the model.
 
 
-
 Main Effects Model
 
 ```{r main effects model}
@@ -91,7 +86,8 @@ Main Effects Model
 main_effects = lm(bwt ~ blength + gaweeks, data = data)
 
 main_effects %>%
-  broom::tidy()
+  broom::tidy() %>%
+  knitr::kable()
 
 plot_main_effects =
   data %>% 
@@ -109,7 +105,8 @@ Interaction Effects Model
 interaction_effects = lm(bwt ~ blength + gaweeks + (bhead*blength*babysex), data = data)
 
 interaction_effects %>%
-  broom::tidy()
+  broom::tidy() %>%
+  knitr::kable()
 
 plot_interaction_effects =
   data %>% 
@@ -160,8 +157,6 @@ Based on the plot above, the proposed model is the best model because it has the
 
 #Problem 2
 
-#Error? How to adjust broom::tidy --> gives estimates for beta0 and beta1, can compute the log(beta0 and beta1 by creating a new column). have to pivot the estimate wider
-#get CI by taking the percentiles
 
 ```{r, echo = FALSE}
 weather_df = 
@@ -205,7 +200,7 @@ r^2
 boot_straps_1 =
   boot_straps %>% 
   unnest(results) %>%
-  ggplot(aes(x = r.squared)) + geom_density()
+  ggplot(aes(x = r.squared)) + geom_density() + labs(x = "r^2")
 
 boot_straps_1
 
@@ -214,7 +209,7 @@ percentile_1 =
   unnest(results) %>%
     summarize(
     perc_2.5 = quantile(r.squared, 0.025),
-    perc_90_1 = quantile(r.squared, 0.975)) %>%
+    perc_97.5 = quantile(r.squared, 0.975)) %>%
   knitr::kable()
 
 percentile_1
@@ -235,20 +230,20 @@ boot_straps_2 =
   janitor::clean_names() %>%
   mutate(log_term = log(intercept * tmin)) 
 
+boot_straps_2_plot =
+  boot_straps_2 %>%
+  ggplot(aes(x = log_term)) + geom_density() + labs(x = "log(β^0∗β^1)")
+
+boot_straps_2_plot
+
 percentile_2 = 
   boot_straps_2 %>%
   summarize(
     perc_2.5 = quantile(log_term, 0.025),
-    perc_90_1 = quantile(log_term, 0.975)) %>%
+    perc_97.5 = quantile(log_term, 0.975)) %>%
   knitr::kable()
   
 percentile_2  
-
-boot_straps_2_plot =
-  boot_straps_2 %>%
-  ggplot(aes(x = log_term)) + geom_density()
-
-boot_straps_2_plot
 
 ```
 
