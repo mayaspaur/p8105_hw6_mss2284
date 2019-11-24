@@ -74,7 +74,7 @@ scatter_plot =
   data %>% 
   modelr::add_residuals(proposed_model) %>% 
   modelr::add_predictions(proposed_model) %>%
-  ggplot(aes(x = pred, y = resid)) + geom_point()
+  ggplot(aes(x = pred, y = resid)) + geom_point() + labs(title= "Model residues against fitted values for Proposed Model")
 
 scatter_plot
 ```
@@ -96,7 +96,7 @@ plot_main_effects =
   data %>% 
   modelr::add_residuals(main_effects) %>%
   modelr::add_predictions(main_effects) %>%
-  ggplot(aes(x = pred, y = resid)) + geom_point()
+  ggplot(aes(x = pred, y = resid)) + geom_point() + labs(title = "Main Effects")
 
 plot_main_effects
 ```
@@ -115,7 +115,7 @@ plot_interaction_effects =
   data %>% 
   modelr::add_residuals(interaction_effects) %>%
   modelr::add_predictions(interaction_effects) %>%
-  ggplot(aes(x = pred, y = resid)) + geom_point()
+  ggplot(aes(x = pred, y = resid)) + geom_point() + labs(title = "Interaction Effects")
 
 plot_interaction_effects
 ```
@@ -149,7 +149,7 @@ comparison_plot =
     values_to = "rmse",
     names_prefix = "rmse_") %>% 
   mutate(model = fct_inorder(model)) %>% 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
+  ggplot(aes(x = model, y = rmse)) + geom_violin() + labs(title = "Comparison of Models")
 
 comparison_plot
 ```
