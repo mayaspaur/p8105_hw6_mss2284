@@ -79,7 +79,7 @@ scatter_plot =
 scatter_plot
 ```
 
-I propose to include these statistically significant variables, babysex, bhead, blength, delwt, gaweeks, mrace, parity, and smoken in the model.
+I propose to include mrace and these statistically significant variables, babysex, bhead, blength, delwt, gaweeks, parity, and smoken in the model.
 
 
 Main Effects Model
