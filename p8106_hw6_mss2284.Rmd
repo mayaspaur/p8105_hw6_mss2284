@@ -11,11 +11,14 @@ library(modelr)
 library(mgcv)
 library(ggplot2)
 
+set.seed(1)
 ```
 
 #Problem 1
 
 Load and tidy data: categorical variabels were converted into factor variables, and variables that had units in pounds (delwt, ppwt, wtgain) were converted to grams.
+
+Values for the variables pnumlbw and pnumsga were all 0. The data were not missing but were included as 0.
 
 ```{r}
 data = 
@@ -32,7 +35,7 @@ data =
 
 ```
 
-In proposing a regression model for birthweight, I explore a data-driven model-building process using backward selection, whereby variables that are statistically significant remain the model.
+In proposing a regression model for birthweight, I explore a data-driven model-building process using backward selection, which starts with all variables and then iteratively removes all non statistically significant variables, so that only the statistically significant variables remain the model.
 
 Using all of the variables included in the dataset:
 
@@ -46,11 +49,11 @@ model %>%
 
 Using this model-building process, the following variables were statistically significant (p < 0.05):
 
-babysex2, bhead, blength, delwt, gaweeks, mrace2, parity, and smoken.
+babysex2, bhead, blength, delwt, gaweeks, mrace2, mrace4, parity, and smoken.
 
 According to backward selection, a new model is run with these statistically significant variables to determine if they remain significant; the process is repeated until the remainder are all significant. 
 
-#Provide an explicit explanation.
+While mrace3 (the third level of the mrace categorical variable) was not statistically significant, I kept mrace in the model because of the longstanding evidence supporting that maternal race is an important determinant of baby weight.
 
 As displayed below, these variables remain significant in the restricted model and represent the proposed model: 
 
@@ -117,8 +120,7 @@ plot_interaction_effects =
 plot_interaction_effects
 ```
 
-For the model containing babysex, bhead, blength, and the interactions between these variables, the interaction terms were statistically significant.
-
+For the model containing babysex, bhead, blength, and the interactions between these variables, the interaction terms were statistically significant for all interactions except blength and bhead.
 
 Compare models:
 
@@ -176,8 +178,6 @@ weather_df =
 Bootstraps
 
 ```{r}
-set.seed(1)
-
 boot_straps = 
   weather_df %>% 
   modelr::bootstrap(n = 10) %>%
@@ -193,17 +193,21 @@ boot_straps
 
 Plot of Distribution of Estimates
 
-#Do they mean a density plot?
 
 r^2
 ```{r}
 boot_straps_1 =
   boot_straps %>% 
   unnest(results) %>%
-  ggplot(aes(x = r.squared)) + geom_density() + labs(x = "r^2")
+  ggplot(aes(x = r.squared)) + geom_density() + labs(x = "r^2") +  theme_minimal()
 
 boot_straps_1
 
+```
+
+The 95% Confidence Interval for r^2 is indicated in the following table, from the 2.5 to 97.5% quantiles:
+
+```{r}
 percentile_1 = 
   boot_straps %>% 
   unnest(results) %>%
@@ -213,8 +217,10 @@ percentile_1 =
   knitr::kable()
 
 percentile_1
-
 ```
+
+
+
 
 log(β^0∗β^1)
 
@@ -232,10 +238,15 @@ boot_straps_2 =
 
 boot_straps_2_plot =
   boot_straps_2 %>%
-  ggplot(aes(x = log_term)) + geom_density() + labs(x = "log(β^0∗β^1)")
+  ggplot(aes(x = log_term)) + geom_density() + labs(x = "log(β^0 x β^1)") + theme_minimal()
 
 boot_straps_2_plot
 
+```
+
+The 95% Confidence Interval for log(β^0∗β^1) is indicated in the following table, from the 2.5 to 97.5% quantiles:
+
+```{r}
 percentile_2 = 
   boot_straps_2 %>%
   summarize(
@@ -246,4 +257,5 @@ percentile_2 =
 percentile_2  
 
 ```
+
 
