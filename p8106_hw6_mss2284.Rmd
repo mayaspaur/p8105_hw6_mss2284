@@ -11,7 +11,7 @@ library(modelr)
 library(mgcv)
 library(ggplot2)
 
-set.seed(1)
+set.seed(1)   
 ```
 
 #Problem 1
@@ -155,7 +155,7 @@ comparison_plot
 ```
 
 
-Based on the plot above, the proposed model is the best model because it has the lowest RMSE values. Second best is the interaction_effects model, and the worst model is the main_effects model with the highest RMSE.
+Based on the plot above, the proposed model is the best model because it has the lowest RMSE values. Second best is the interaction effects model, and the worst model is the main effects model with the highest RMSE.
 
 #Problem 2
 
